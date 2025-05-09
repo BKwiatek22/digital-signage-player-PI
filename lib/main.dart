@@ -3,12 +3,15 @@ import 'package:video_player/video_player.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'dart:async';
+import 'widgets/thumbnail_widget.dart';
 
 void main() {
   runApp(DigitalSignageApp());
 }
 
 class DigitalSignageApp extends StatelessWidget {
+  const DigitalSignageApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -20,6 +23,8 @@ class DigitalSignageApp extends StatelessWidget {
 }
 
 class MediaGallery extends StatefulWidget {
+  const MediaGallery({super.key});
+
   @override
   _MediaGalleryState createState() => _MediaGalleryState();
 }
@@ -65,10 +70,10 @@ class _MediaGalleryState extends State<MediaGallery> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Digital Signage')),
+      appBar: AppBar(title: const Text('Digital Signage')),
       body: GridView.builder(
-        padding: EdgeInsets.all(8.0),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        padding: const EdgeInsets.all(8.0),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 8.0,
           mainAxisSpacing: 8.0,
@@ -80,7 +85,7 @@ class _MediaGalleryState extends State<MediaGallery> {
             onTap: () => _viewFile(index),
             onLongPress: () => _deleteFile(index),
             child: file.path.endsWith('.mp4')
-                ? VideoWidget(videoFile: file)
+                ? ThumbnailWidget(videoFile: file) // zamiast VideoWidget
                 : Image.file(file, fit: BoxFit.cover),
           );
         },
@@ -90,12 +95,12 @@ class _MediaGalleryState extends State<MediaGallery> {
         children: [
           FloatingActionButton(
             onPressed: _pickImage,
-            child: Icon(Icons.image),
+            child: const Icon(Icons.image),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           FloatingActionButton(
             onPressed: _pickVideo,
-            child: Icon(Icons.videocam),
+            child: const Icon(Icons.videocam),
           ),
         ],
       ),
@@ -105,7 +110,7 @@ class _MediaGalleryState extends State<MediaGallery> {
 
 class VideoWidget extends StatefulWidget {
   final File videoFile;
-  VideoWidget({required this.videoFile});
+  const VideoWidget({super.key, required this.videoFile});
 
   @override
   _VideoWidgetState createState() => _VideoWidgetState();
@@ -138,14 +143,15 @@ class _VideoWidgetState extends State<VideoWidget> {
             aspectRatio: _controller.value.aspectRatio,
             child: VideoPlayer(_controller),
           )
-        : Center(child: CircularProgressIndicator());
+        : const Center(child: CircularProgressIndicator());
   }
 }
 
 class FullScreenLoopViewer extends StatefulWidget {
   final List<File> mediaFiles;
   final int startIndex;
-  FullScreenLoopViewer({required this.mediaFiles, required this.startIndex});
+  const FullScreenLoopViewer(
+      {super.key, required this.mediaFiles, required this.startIndex});
 
   @override
   _FullScreenLoopViewerState createState() => _FullScreenLoopViewerState();
@@ -162,7 +168,7 @@ class _FullScreenLoopViewerState extends State<FullScreenLoopViewer> {
   }
 
   void _startLoop() {
-    Future.delayed(Duration(seconds: 5), () {
+    Future.delayed(const Duration(seconds: 5), () {
       if (mounted) {
         setState(() {
           currentIndex = (currentIndex + 1) % widget.mediaFiles.length;
