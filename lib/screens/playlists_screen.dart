@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/playlist.dart';
+import 'playlist_details_screen.dart';
+import 'package:file_picker/file_picker.dart';
+import '../models/playlist_item.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PlaylistsScreen extends StatefulWidget {
-  const PlaylistsScreen({super.key});
+  final List<PlatformFile> mediaFiles;
+
+  const PlaylistsScreen({Key? key, required this.mediaFiles}) : super(key: key);
 
   @override
   State<PlaylistsScreen> createState() => _PlaylistsScreenState();
@@ -10,6 +17,30 @@ class PlaylistsScreen extends StatefulWidget {
 
 class _PlaylistsScreenState extends State<PlaylistsScreen> {
   List<Playlist> playlists = [];
+  static const _prefsPlaylistsKey = 'saved_playlists';
+  @override
+  void initState() {
+    super.initState();
+    // W tym miejscu ładujesz playlisty z dysku
+    loadPlaylists().then((list) {
+      setState(() => playlists = list);
+    });
+  }
+
+// Zapisz wszystkie playlisty do pamięci
+  Future<void> savePlaylists(List<Playlist> playlists) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = playlists.map((e) => json.encode(e.toMap())).toList();
+    await prefs.setStringList(_prefsPlaylistsKey, jsonList);
+  }
+
+// Wczytaj wszystkie playlisty z pamięci
+  Future<List<Playlist>> loadPlaylists() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonList = prefs.getStringList(_prefsPlaylistsKey);
+    if (jsonList == null) return [];
+    return jsonList.map((e) => Playlist.fromMap(json.decode(e))).toList();
+  }
 
   // Dodaj nową playlistę (pokaż dialog z nazwą)
   Future<void> _addPlaylistDialog() async {
@@ -48,6 +79,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
           ),
         );
       });
+      await savePlaylists(playlists);
     }
   }
 
@@ -125,8 +157,30 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                       ),
                     ],
                   ),
-                  onTap: () {
-                    // W przyszłości: szczegóły/edycja playlisty
+                  onTap: () async {
+                    print(
+                        "Liczba multimediów dostępnych do dodania: ${widget.mediaFiles.length}");
+
+                    // ZAMIEŃ PlatformFile na PlaylistItem
+                    List<PlaylistItem> availableItems = widget.mediaFiles
+                        .map((file) => PlaylistItem(file: file))
+                        .toList();
+
+                    final updatedPlaylist =
+                        await Navigator.of(context).push<Playlist>(
+                      MaterialPageRoute(
+                        builder: (_) => PlaylistDetailsScreen(
+                          playlist: playlists[index],
+                          availableItems: availableItems, // <-- kluczowe!
+                        ),
+                      ),
+                    );
+                    if (updatedPlaylist != null) {
+                      setState(() {
+                        playlists[index] = updatedPlaylist;
+                      });
+                      await savePlaylists(playlists);
+                    }
                   },
                 );
               },

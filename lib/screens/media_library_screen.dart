@@ -6,7 +6,12 @@ import '../widgets/media_grid_item.dart';
 import 'media_preview_screen.dart';
 
 class MediaLibraryScreen extends StatefulWidget {
-  const MediaLibraryScreen({super.key});
+  final void Function(List<PlatformFile>) onFilesChanged;
+
+  const MediaLibraryScreen({
+    Key? key,
+    required this.onFilesChanged,
+  }) : super(key: key);
 
   @override
   State<MediaLibraryScreen> createState() => _MediaLibraryScreenState();
@@ -22,6 +27,7 @@ class _MediaLibraryScreenState extends State<MediaLibraryScreen> {
     _loadFiles();
   }
 
+  // Wczytuje zapisane ścieżki plików z pamięci
   Future<void> _loadFiles() async {
     final prefs = await SharedPreferences.getInstance();
     final List<String>? savedPaths = prefs.getStringList(_prefsKey);
@@ -36,9 +42,12 @@ class _MediaLibraryScreenState extends State<MediaLibraryScreen> {
                 ))
             .toList();
       });
+      widget.onFilesChanged(
+          _selectedFiles); // <-- Informuje aplikację o początkowym stanie listy plików
     }
   }
 
+  // Zapisuje listę ścieżek plików do pamięci
   Future<void> _saveFiles(List<PlatformFile> files) async {
     final prefs = await SharedPreferences.getInstance();
     final paths = files
@@ -48,6 +57,7 @@ class _MediaLibraryScreenState extends State<MediaLibraryScreen> {
     await prefs.setStringList(_prefsKey, paths);
   }
 
+  // Dodaje nowe pliki do listy oraz aktualizuje stan globalny
   Future<void> _pickFiles() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
@@ -61,14 +71,19 @@ class _MediaLibraryScreenState extends State<MediaLibraryScreen> {
           }
         }
       });
+      widget.onFilesChanged(
+          _selectedFiles); // <-- Informuje aplikację o zmianie listy plików po dodaniu
       await _saveFiles(_selectedFiles);
     }
   }
 
+  // Usuwa plik z listy oraz aktualizuje stan globalny
   void _removeFile(int index) async {
     setState(() {
       _selectedFiles.removeAt(index);
     });
+    widget.onFilesChanged(
+        _selectedFiles); // <-- Informuje aplikację o zmianie listy plików po usunięciu
     await _saveFiles(_selectedFiles);
   }
 
