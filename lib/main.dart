@@ -1,6 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:video_thumbnail/video_thumbnail.dart';
+import 'dart:typed_data';
+import 'package:video_player/video_player.dart';
 
 void main() {
   runApp(const DigitalSignageApp());
@@ -30,28 +34,75 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
-  // Lista wybranych plików
   List<PlatformFile> _selectedFiles = [];
+  final String _prefsKey = 'saved_file_paths';
 
-  // Funkcja wybierania plików (wiele plików na raz)
-  Future<void> _pickFiles() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.any, // obsługujemy każdy format (obrazy, wideo, inne)
-    );
-    if (result != null) {
+  @override
+  void initState() {
+    super.initState();
+    _loadFiles();
+  }
+
+  // Ładowanie ścieżek plików z pamięci
+  Future<void> _loadFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final List<String>? savedPaths = prefs.getStringList(_prefsKey);
+    if (savedPaths != null) {
       setState(() {
-        // Dodaje nowe pliki do listy (nie usuwa poprzednich)
-        _selectedFiles.addAll(result.files.where((newFile) =>
-            !_selectedFiles.any((oldFile) => oldFile.path == newFile.path)));
+        _selectedFiles = savedPaths
+            .where((path) => File(path).existsSync())
+            .map((path) => PlatformFile(
+                  path: path,
+                  name: path.split(Platform.pathSeparator).last,
+                  size: File(path).lengthSync(),
+                  // Możesz dodać typ pliku (np. extension) jeśli potrzebujesz
+                ))
+            .toList();
       });
     }
   }
 
-  // Miniaturka pliku – obraz jeśli zdjęcie, ikona jeśli inny typ
+  // Zapis ścieżek do plików
+  Future<void> _saveFiles() async {
+    final prefs = await SharedPreferences.getInstance();
+    final paths = _selectedFiles
+        .where((file) => file.path != null)
+        .map((file) => file.path!)
+        .toList();
+    await prefs.setStringList(_prefsKey, paths);
+  }
+
+  // Dodawanie wielu plików
+  Future<void> _pickFiles() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.any,
+    );
+    if (result != null) {
+      setState(() {
+        // Dodaj tylko nowe pliki (unikaj duplikatów po ścieżce)
+        for (var newFile in result.files) {
+          if (!_selectedFiles.any((f) => f.path == newFile.path)) {
+            _selectedFiles.add(newFile);
+          }
+        }
+      });
+      await _saveFiles(); // Zapisz zmiany po dodaniu
+    }
+  }
+
+  // Usuwanie pliku z listy
+  void _removeFile(int index) async {
+    setState(() {
+      _selectedFiles.removeAt(index);
+    });
+    await _saveFiles();
+  }
+
   Widget _buildThumbnail(PlatformFile file) {
     final ext = file.extension?.toLowerCase();
-    // Obsługa obrazów
+
+    // Miniatury dla obrazów – bez zmian
     if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext)) {
       if (file.path != null) {
         return Image.file(
@@ -62,11 +113,38 @@ class _MainScreenState extends State<MainScreen> {
         );
       }
     }
-    // Obsługa filmów
+
+    // Miniatura wideo
     if (['mp4', 'avi', 'mov', 'mkv', 'webm'].contains(ext)) {
-      return const Icon(Icons.movie, size: 48, color: Colors.deepPurple);
+      return FutureBuilder<Uint8List?>(
+        future: VideoThumbnail.thumbnailData(
+          video: file.path!,
+          imageFormat: ImageFormat.PNG,
+          maxWidth: 256, // większa szerokość – ostrzejsza miniaturka!
+          quality: 100, // 100% jakości
+        ),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.done &&
+              snapshot.hasData &&
+              snapshot.data != null) {
+            return Image.memory(
+              snapshot.data!,
+              width: 90,
+              height: 90,
+              fit: BoxFit.cover,
+            );
+          } else {
+            return const SizedBox(
+              width: 90,
+              height: 90,
+              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+            );
+          }
+        },
+      );
     }
-    // Domyślna ikona
+
+    // Inne pliki – domyślna ikona
     return const Icon(Icons.insert_drive_file, size: 48, color: Colors.grey);
   }
 
@@ -86,30 +164,81 @@ class _MainScreenState extends State<MainScreen> {
               style: TextStyle(fontSize: 20),
             ),
             const SizedBox(height: 12),
-            // Lista wybranych plików z miniaturkami
             Expanded(
               child: _selectedFiles.isEmpty
                   ? const Text('Nie wybrano żadnych plików.')
-                  : ListView.separated(
+                  : GridView.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3, // liczba kolumn w gridzie
+                        crossAxisSpacing: 8,
+                        mainAxisSpacing: 8,
+                        childAspectRatio: 0.8,
+                      ),
                       itemCount: _selectedFiles.length,
-                      separatorBuilder: (context, index) =>
-                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final file = _selectedFiles[index];
-                        return ListTile(
-                          leading: _buildThumbnail(file),
-                          title: Text(file.name,
-                              maxLines: 1, overflow: TextOverflow.ellipsis),
-                          // Usuwanie pliku z listy (opcjonalnie)
-                          trailing: IconButton(
-                            icon: const Icon(Icons.delete_outline,
-                                color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                _selectedFiles.removeAt(index);
-                              });
-                            },
-                          ),
+                        return Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Stack(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: SizedBox(
+                                    width: 90,
+                                    height: 90,
+                                    child: GestureDetector(
+                                      onTap: () async {
+                                        final removed =
+                                            await Navigator.of(context)
+                                                .push<bool>(
+                                          MaterialPageRoute(
+                                            builder: (_) => MediaPreviewScreen(
+                                              file: file,
+                                              onDelete: () {
+                                                Navigator.of(context).pop(true);
+                                              },
+                                            ),
+                                          ),
+                                        );
+                                        if (removed == true) {
+                                          _removeFile(
+                                              index); // usuwamy z listy po powrocie
+                                        }
+                                      },
+                                      child: _buildThumbnail(file),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  top: 0,
+                                  right: 0,
+                                  child: GestureDetector(
+                                    onTap: () => _removeFile(index),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withOpacity(0.8),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(Icons.close,
+                                          color: Colors.red, size: 20),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Flexible(
+                              child: Text(
+                                file.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
                         );
                       },
                     ),
@@ -124,6 +253,107 @@ class _MainScreenState extends State<MainScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class MediaPreviewScreen extends StatefulWidget {
+  final PlatformFile file;
+  final VoidCallback onDelete;
+
+  const MediaPreviewScreen(
+      {Key? key, required this.file, required this.onDelete})
+      : super(key: key);
+
+  @override
+  State<MediaPreviewScreen> createState() => _MediaPreviewScreenState();
+}
+
+class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
+  VideoPlayerController? _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    final ext = widget.file.extension?.toLowerCase();
+    if (['mp4', 'avi', 'mov', 'mkv', 'webm'].contains(ext)) {
+      _controller = VideoPlayerController.file(File(widget.file.path!))
+        ..initialize().then((_) {
+          setState(() {});
+        });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ext = widget.file.extension?.toLowerCase();
+    final isImage = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext);
+    final isVideo = ['mp4', 'avi', 'mov', 'mkv', 'webm'].contains(ext);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.file.name),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete, color: Colors.red),
+            onPressed: () {
+              widget.onDelete();
+              Navigator.of(context).pop();
+            },
+          ),
+        ],
+      ),
+      backgroundColor: Colors.black,
+      body: Center(
+        child: isImage && widget.file.path != null
+            ? InteractiveViewer(
+                child: Image.file(File(widget.file.path!)),
+              )
+            : isVideo && _controller != null && _controller!.value.isInitialized
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AspectRatio(
+                        aspectRatio: _controller!.value.aspectRatio,
+                        child: VideoPlayer(_controller!),
+                      ),
+                      VideoProgressIndicator(_controller!,
+                          allowScrubbing: true),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              _controller!.value.isPlaying
+                                  ? Icons.pause
+                                  : Icons.play_arrow,
+                              color: Colors.white,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                if (_controller!.value.isPlaying) {
+                                  _controller!.pause();
+                                } else {
+                                  _controller!.play();
+                                }
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
+                : const Text(
+                    'Nieobsługiwany typ pliku lub nie można odtworzyć.',
+                    style: TextStyle(color: Colors.white),
+                  ),
       ),
     );
   }
