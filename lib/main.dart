@@ -154,6 +154,37 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: const Text('Digital Signage'),
       ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            const DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text('Menu',
+                  style: TextStyle(color: Colors.white, fontSize: 24)),
+            ),
+            ListTile(
+              leading: Icon(Icons.photo_library),
+              title: const Text('Wybrane multimedia'),
+              onTap: () {
+                Navigator.pop(context);
+                // Przełącz na ekran główny (możesz dodać zmienną _currentScreen do kontrolowania ekranu)
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.playlist_play),
+              title: const Text('Playlisty'),
+              onTap: () {
+                Navigator.pop(context);
+                // Przełącz na ekran Playlist (przygotuj nowy ekran)
+              },
+            ),
+            // Możesz dodać kolejne opcje
+          ],
+        ),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
