@@ -190,21 +190,21 @@ class _MainScreenState extends State<MainScreen> {
                                     height: 90,
                                     child: GestureDetector(
                                       onTap: () async {
-                                        final removed =
+                                        final shouldDelete =
                                             await Navigator.of(context)
                                                 .push<bool>(
                                           MaterialPageRoute(
                                             builder: (_) => MediaPreviewScreen(
                                               file: file,
-                                              onDelete: () {
-                                                Navigator.of(context).pop(true);
-                                              },
                                             ),
                                           ),
                                         );
-                                        if (removed == true) {
-                                          _removeFile(
-                                              index); // usuwamy z listy po powrocie
+                                        if (shouldDelete == true) {
+                                          setState(() {
+                                            _selectedFiles.removeWhere(
+                                                (f) => f.path == file.path);
+                                          });
+                                          await _saveFiles();
                                         }
                                       },
                                       child: _buildThumbnail(file),
@@ -260,11 +260,8 @@ class _MainScreenState extends State<MainScreen> {
 
 class MediaPreviewScreen extends StatefulWidget {
   final PlatformFile file;
-  final VoidCallback onDelete;
 
-  const MediaPreviewScreen(
-      {Key? key, required this.file, required this.onDelete})
-      : super(key: key);
+  const MediaPreviewScreen({Key? key, required this.file}) : super(key: key);
 
   @override
   State<MediaPreviewScreen> createState() => _MediaPreviewScreenState();
@@ -304,8 +301,8 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
           IconButton(
             icon: const Icon(Icons.delete, color: Colors.red),
             onPressed: () {
-              widget.onDelete();
-              Navigator.of(context).pop();
+              // Zamykamy ekran i zwracamy true (prośba o usunięcie)
+              Navigator.of(context).pop(true);
             },
           ),
         ],
