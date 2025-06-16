@@ -1,9 +1,8 @@
-import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
+import '../utils/media_thumbnail.dart';
 
+/// Widget jednego pliku w gridzie biblioteki multimediów
 class MediaGridItem extends StatelessWidget {
   final PlatformFile file;
   final VoidCallback onRemove;
@@ -16,93 +15,50 @@ class MediaGridItem extends StatelessWidget {
     required this.onTap,
   }) : super(key: key);
 
-  Widget _buildThumbnail(BuildContext context) {
-    final ext = file.extension?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].contains(ext)) {
-      if (file.path != null) {
-        return Image.file(
-          File(file.path!),
-          width: 90,
-          height: 90,
-          fit: BoxFit.cover,
-        );
-      }
-    }
-    if (['mp4', 'avi', 'mov', 'mkv', 'webm'].contains(ext)) {
-      return FutureBuilder<Uint8List?>(
-        future: VideoThumbnail.thumbnailData(
-          video: file.path!,
-          imageFormat: ImageFormat.PNG,
-          maxWidth: 256,
-          quality: 100,
-        ),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done &&
-              snapshot.hasData &&
-              snapshot.data != null) {
-            return Image.memory(
-              snapshot.data!,
-              width: 90,
-              height: 90,
-              fit: BoxFit.cover,
-            );
-          } else {
-            return const SizedBox(
-              width: 90,
-              height: 90,
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
-            );
-          }
-        },
-      );
-    }
-    return const Icon(Icons.insert_drive_file, size: 48, color: Colors.grey);
-  }
-
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap, // <--- przekazany callback
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  width: 90,
-                  height: 90,
-                  child: _buildThumbnail(context),
-                ),
-              ),
-              Positioned(
-                top: 0,
-                right: 0,
-                child: GestureDetector(
-                  onTap: onRemove,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.8),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.close, color: Colors.red, size: 20),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Flexible(
-            child: Text(
-              file.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 13),
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        elevation: 2,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        child: Stack(
+          children: [
+            FutureBuilder<Widget>(
+              future: buildMediaThumbnail(file, size: 80),
+              builder: (context, snapshot) {
+                final thumbnail =
+                    snapshot.data ?? const SizedBox(width: 80, height: 80);
+                return Center(child: thumbnail);
+              },
             ),
-          ),
-        ],
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.red, size: 20),
+                tooltip: 'Usuń',
+                onPressed: onRemove,
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+                child: Text(
+                  file.name,
+                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

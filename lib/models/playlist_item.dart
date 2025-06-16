@@ -2,9 +2,19 @@ import 'package:file_picker/file_picker.dart';
 
 class PlaylistItem {
   final PlatformFile file;
-  int durationSeconds;
+  final int? durationSeconds;
 
   PlaylistItem({required this.file, this.durationSeconds = 7});
+
+  PlaylistItem copyWith({
+    PlatformFile? file,
+    int? durationSeconds,
+  }) {
+    return PlaylistItem(
+      file: file ?? this.file,
+      durationSeconds: durationSeconds ?? this.durationSeconds,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {

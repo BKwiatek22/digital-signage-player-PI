@@ -119,9 +119,11 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
       },
     );
     if (result != null && result.trim().isNotEmpty) {
+      final updatedPlaylist = playlists[index].copyWith(name: result.trim());
       setState(() {
-        playlists[index].name = result.trim();
+        playlists[index] = updatedPlaylist;
       });
+      await savePlaylists(playlists);
     }
   }
 
