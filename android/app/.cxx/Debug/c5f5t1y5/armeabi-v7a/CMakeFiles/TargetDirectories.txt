@@ -1,0 +1,2 @@
+C:/Users/reese/Documents/flutter_projects/Projekt_inzynierski_BK/projekt_inzynierski_bk/android/app/.cxx/Debug/c5f5t1y5/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/reese/Documents/flutter_projects/Projekt_inzynierski_BK/projekt_inzynierski_bk/android/app/.cxx/Debug/c5f5t1y5/armeabi-v7a/CMakeFiles/rebuild_cache.dir
