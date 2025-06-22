@@ -94,7 +94,6 @@ class _MediaLibraryScreenState extends State<MediaLibraryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Wybrane multimedia:', style: TextStyle(fontSize: 20)),
           const SizedBox(height: 12),
           Expanded(
             child: _selectedFiles.isEmpty
@@ -132,7 +131,7 @@ class _MediaLibraryScreenState extends State<MediaLibraryScreen> {
           Center(
             child: ElevatedButton.icon(
               icon: const Icon(Icons.add),
-              label: const Text('Dodaj pliki do playlisty'),
+              label: const Text('Dodaj pliki'),
               onPressed: _pickFiles,
             ),
           ),

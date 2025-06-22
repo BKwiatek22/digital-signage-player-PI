@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/playlist.dart';
 import 'playlist_details_screen.dart';
+import 'playlist_player_screen.dart';
 import 'package:file_picker/file_picker.dart';
 import '../models/playlist_item.dart';
 import 'dart:convert';
@@ -21,20 +22,17 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
   @override
   void initState() {
     super.initState();
-    // W tym miejscu ładujesz playlisty z dysku
     loadPlaylists().then((list) {
       setState(() => playlists = list);
     });
   }
 
-// Zapisz wszystkie playlisty do pamięci
   Future<void> savePlaylists(List<Playlist> playlists) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = playlists.map((e) => json.encode(e.toMap())).toList();
     await prefs.setStringList(_prefsPlaylistsKey, jsonList);
   }
 
-// Wczytaj wszystkie playlisty z pamięci
   Future<List<Playlist>> loadPlaylists() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = prefs.getStringList(_prefsPlaylistsKey);
@@ -42,7 +40,6 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
     return jsonList.map((e) => Playlist.fromMap(json.decode(e))).toList();
   }
 
-  // Dodaj nową playlistę (pokaż dialog z nazwą)
   Future<void> _addPlaylistDialog() async {
     String playlistName = '';
     final result = await showDialog<String>(
@@ -83,14 +80,13 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
     }
   }
 
-  // Usuwanie playlisty z listy
   void _removePlaylist(int index) {
     setState(() {
       playlists.removeAt(index);
     });
+    savePlaylists(playlists);
   }
 
-  // Edycja nazwy playlisty (na razie przez dialog)
   Future<void> _editPlaylistName(int index) async {
     String newName = playlists[index].name;
     final result = await showDialog<String>(
@@ -127,12 +123,44 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
     }
   }
 
+  Future<String?> _showPinDialog(
+      BuildContext context, String? currentPin) async {
+    final controller = TextEditingController(text: currentPin ?? '');
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(currentPin == null || currentPin.isEmpty
+            ? 'Ustaw PIN dla tej playlisty'
+            : 'Zmień lub usuń PIN playlisty'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          decoration: const InputDecoration(
+            labelText: 'PIN (pozostaw puste, by usunąć)',
+          ),
+          obscureText: true,
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Anuluj'),
+            onPressed: () => Navigator.pop(context),
+          ),
+          TextButton(
+            child: const Text('Zapisz'),
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Playlisty'),
-      ),
+      //appBar: AppBar(
+      //  title: const Text('Playlisty'),
+      //),
       body: playlists.isEmpty
           ? const Center(child: Text('Brak utworzonych playlist'))
           : ListView.separated(
@@ -143,10 +171,45 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                 return ListTile(
                   leading: const Icon(Icons.playlist_play),
                   title: Text(playlist.name),
-                  subtitle: Text('${playlist.items.length} plików'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${playlist.items.length} plików'),
+                      if (playlist.pin != null && playlist.pin!.isNotEmpty)
+                        const Text("Zabezpieczona PIN-em",
+                            style: TextStyle(
+                                color: Colors.blueGrey, fontSize: 12)),
+                    ],
+                  ),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.lock,
+                          color:
+                              playlist.pin != null && playlist.pin!.isNotEmpty
+                                  ? Colors.blue
+                                  : Colors.grey,
+                        ),
+                        tooltip:
+                            playlist.pin != null && playlist.pin!.isNotEmpty
+                                ? "Zmień/usuń PIN"
+                                : "Ustaw PIN",
+                        onPressed: () async {
+                          final newPin =
+                              await _showPinDialog(context, playlist.pin);
+                          if (newPin != null) {
+                            setState(() {
+                              playlists[index] = playlist.copyWith(
+                                  pin: (newPin == null || newPin.isEmpty)
+                                      ? null
+                                      : newPin);
+                            });
+                            await savePlaylists(playlists);
+                          }
+                        },
+                      ),
                       IconButton(
                         icon: const Icon(Icons.edit, color: Colors.blueAccent),
                         tooltip: 'Zmień nazwę',
@@ -157,13 +220,29 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                         tooltip: 'Usuń',
                         onPressed: () => _removePlaylist(index),
                       ),
+                      IconButton(
+                        icon: const Icon(Icons.play_arrow, color: Colors.green),
+                        tooltip: "Odtwórz playlistę",
+                        onPressed: () async {
+                          final prefs = await SharedPreferences.getInstance();
+                          await prefs.setString(
+                              'active_playlist_name', playlists[index].name);
+
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => PlaylistPlayerScreen(
+                                items: playlists[index].items,
+                                pin: playlists[index].pin,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                   onTap: () async {
                     print(
                         "Liczba multimediów dostępnych do dodania: ${widget.mediaFiles.length}");
-
-                    // ZAMIEŃ PlatformFile na PlaylistItem
                     List<PlaylistItem> availableItems = widget.mediaFiles
                         .map((file) => PlaylistItem(file: file))
                         .toList();
@@ -173,7 +252,7 @@ class _PlaylistsScreenState extends State<PlaylistsScreen> {
                       MaterialPageRoute(
                         builder: (_) => PlaylistDetailsScreen(
                           playlist: playlists[index],
-                          availableItems: availableItems, // <-- kluczowe!
+                          availableItems: availableItems,
                         ),
                       ),
                     );

@@ -3,6 +3,7 @@ import 'package:file_picker/file_picker.dart';
 import '../models/playlist.dart';
 import '../models/playlist_item.dart';
 import '../utils/media_thumbnail.dart';
+import '../screens/playlist_player_screen.dart';
 
 bool isImageFile(PlatformFile file) {
   final ext = file.extension?.toLowerCase();
@@ -184,10 +185,10 @@ class _PlaylistDetailsScreenState extends State<PlaylistDetailsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Szczegóły playlisty: ${widget.playlist.name}'),
+        title: Text('${widget.playlist.name}'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.timer, color: Colors.blue),
+            icon: const Icon(Icons.timer, color: Colors.white),
             tooltip: 'Ustaw czas dla wszystkich zdjęć',
             onPressed: _showMassDurationDialog,
           ),

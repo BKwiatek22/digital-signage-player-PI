@@ -6,6 +6,7 @@ class Playlist {
   final bool isLooping;
   final DateTime? startTime;
   final DateTime? endTime;
+  final String? pin;
 
   Playlist({
     required this.name,
@@ -13,6 +14,7 @@ class Playlist {
     this.isLooping = false,
     this.startTime,
     this.endTime,
+    this.pin,
   });
 
   /// Pozwala stworzyć nową Playlistę na bazie obecnej, z podmianą wybranych pól.
@@ -22,6 +24,7 @@ class Playlist {
     bool? isLooping,
     DateTime? startTime,
     DateTime? endTime,
+    String? pin,
   }) {
     return Playlist(
       name: name ?? this.name,
@@ -29,10 +32,11 @@ class Playlist {
       isLooping: isLooping ?? this.isLooping,
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
+      pin: pin,
     );
   }
 
-  /// Serializacja do mapy (np. do JSON)
+  /// Serializacja do mapy
   Map<String, dynamic> toMap() {
     return {
       'name': name,
@@ -40,10 +44,11 @@ class Playlist {
       'isLooping': isLooping,
       'startTime': startTime?.millisecondsSinceEpoch,
       'endTime': endTime?.millisecondsSinceEpoch,
+      'pin': pin,
     };
   }
 
-  /// Tworzy Playlistę z mapy (np. po odczycie z JSON)
+  /// Tworzy Playlistę z mapy
   factory Playlist.fromMap(Map<String, dynamic> map) {
     return Playlist(
       name: map['name'] ?? '',
@@ -57,6 +62,7 @@ class Playlist {
       endTime: map['endTime'] != null
           ? DateTime.fromMillisecondsSinceEpoch(map['endTime'])
           : null,
+      pin: map['pin'] as String?,
     );
   }
 }

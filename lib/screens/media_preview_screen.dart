@@ -55,15 +55,45 @@ class _MediaPreviewScreenState extends State<MediaPreviewScreen> {
       body: Center(
         child: isImage && widget.file.path != null
             ? InteractiveViewer(
-                child: Image.file(File(widget.file.path!)),
+                minScale: 1.0,
+                maxScale: 5.0,
+                child: SizedBox.expand(
+                  child: Image.file(
+                    File(widget.file.path!),
+                    fit: BoxFit.contain,
+                  ),
+                ),
               )
             : isVideo && _controller != null && _controller!.value.isInitialized
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      AspectRatio(
-                        aspectRatio: _controller!.value.aspectRatio,
-                        child: VideoPlayer(_controller!),
+                      Expanded(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final aspectRatio = _controller!.value.aspectRatio;
+                            double width = constraints.maxWidth;
+                            double height = width / aspectRatio;
+                            if (height > constraints.maxHeight) {
+                              height = constraints.maxHeight;
+                              width = height * aspectRatio;
+                            }
+                            return Center(
+                              child: SizedBox(
+                                width: width,
+                                height: height,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  child: SizedBox(
+                                    width: _controller!.value.size.width,
+                                    height: _controller!.value.size.height,
+                                    child: VideoPlayer(_controller!),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                       VideoProgressIndicator(_controller!,
                           allowScrubbing: true),
